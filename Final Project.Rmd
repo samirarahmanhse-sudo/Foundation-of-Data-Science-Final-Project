@@ -1,0 +1,264 @@
+---
+title: "Foundations of Data Science Final Project"
+author: "Samira Rahman"
+date: "2025-10-18"
+output: pdf_document
+---
+
+1.	Data Preparation:
+  a.	Download the Sample RNA-seq Count Matrix and associated Metadata.
+    i.	Ensure that you have both the count matrix and the metadata file available for your analysis.
+    
+```{r}
+# Defining the file path where the data is stored
+file_path <- "/Users/100sr/Dartmouth/Foundations in Data Science/Final Project/"
+```
+
+
+```{r}
+## Read in the RNA-seq count matrix
+counts <- read.csv(paste0(file_path,"counts.csv"), row.names = 1)
+
+## Converting to data frame
+counts <- data.frame(counts)
+
+## Preview the first few rows of the counts data frame
+head(counts[, 1:2], 5)
+```
+```{r}
+## Read in the associated metadata file
+metadata <- read.csv(paste0(file_path,"meta_data.csv"), row.names = 1)
+
+## Converting to data frame
+metadata <- data.frame(metadata)
+
+## Preview the first few rows of the metadata data frame
+head(metadata[, 1:3], 5)
+```
+
+2.	Gene Selection and Summary Statistics:
+  a.	Select One Gene: choose a gene from the dataset that interests you.
+```{r}
+# Selecting a gene (row 3) from counts data frame
+gene1 <- counts[3, ]
+
+# Converting from data frame row to numeric vector so we can calculate stats
+gene1_vec <- as.numeric(gene1)
+
+# Get the gene name (Ensemble ID) for the selected gene
+gene1_name <- rownames(counts)[3]
+print(paste("First selected gene is:",gene1_name))
+```
+  
+  b.	Generate Summary Statistics: Using the count data from the selected gene, compute and report summary statistics, such as mean, median, standard deviation, minimum, and maximum. 
+```{r}
+## Generate full summary statistics for the selected gene1
+summary(gene1_vec)
+
+## Mean
+Mean1 <- mean(gene1_vec)
+print(paste("Mean:", Mean1))
+
+## Median
+Median1 <- median(gene1_vec)
+print(paste("Median:", Median1))
+
+## Standard Deviation
+Standard_Deviation1 <- sd(gene1_vec)
+print(paste("Standard Deviation:", Standard_Deviation1))
+
+## Minimum
+Minimum1 <- min(gene1_vec)
+print(paste("Minimum:", Minimum1))
+
+## Maximum
+Maximum1 <- max(gene1_vec)
+print(paste("Maximum:", Maximum1))
+```
+  
+  
+3.	Visualization:
+  a.	Create a Histogram: Use ggplot2 to generate a histogram of the count data for the selected gene. This visualization should effectively display the distribution of the counts. 
+  
+```{r}
+# Create a data frame of the first selected gene counts for ggplot
+gene1_df <- data.frame(Sample_ID = colnames(gene1), Count = gene1_vec)
+#print(gene1_df)
+
+# Load ggplot2 for visualization
+library(ggplot2)
+
+# Plot histogram of counts for the first selected gene
+histogram <- ggplot(gene1_df, aes(x = Count)) +
+  geom_histogram(fill = "lightblue", color = "blue", bins = 20) +
+  labs(
+    title = paste("Histogram of Gene", gene1_name, "Counts"),
+    x = "Counts", 
+    y = "Frequency"
+    )
+print(histogram)
+# Save the plot
+ggsave(paste0(file_path, "final_project_histogram.png"), histogram, width = 5, height = 4,dpi = 300)
+```
+  
+  b.	Create a Scatter Plot: Select a second gene from the dataset. Create a scatter plot using ggplot2 to compare the count data of the two selected genes. 
+```{r}
+# Selecting a second gene (row 5) from counts data frame
+gene2 <- counts[5, ]
+
+# Converting from data frame row to numeric vector
+gene2_vec <- as.numeric(gene2)
+
+# Get the gene name (Ensemble ID) for the selected gene
+gene2_name <- rownames(counts)[5]
+print(paste("Second selected gene is:", gene2_name))
+
+# Create a data frame of the second selected gene counts for ggplot
+gene2_df <- data.frame(Sample_ID = colnames(gene2), Count = gene2_vec)
+#print(gene2_df)
+```
+```{r}
+# Merge the two selected gene data frames by Sample ID so we can plot them together
+scatter_df <- merge(gene1_df, gene2_df, by = "Sample_ID", suffixes = c(paste("", gene1_name), paste("", gene2_name)))
+#print(scatter_df)
+
+# Scatter plot comparing expression counts of gene X vs gene Y
+scatter_plot <- ggplot(scatter_df, aes(x = .data[[paste("Count", gene1_name)]], y = .data[[paste("Count", gene2_name)]])) +
+  geom_point(color = "blue", size = 2) +
+  # Linear regression line with confidence interval(standard error) around the fitted line
+  geom_smooth(method = "lm", se = TRUE, color = "red") + 
+  labs(
+    x = paste("Count of", gene1_name),
+    y = paste("Count of", gene2_name),
+    title = paste("Scatter Plot of Genes", gene1_name, "vs", gene2_name)
+  )
+print(scatter_plot)
+# Save the plot
+ggsave(paste0(file_path, "final_project_scatter.png"), scatter_plot, width = 7, height = 5,dpi = 300)
+```
+  
+  c.	Create a Violin Plot: Select one covariate from your metadata. Using the count data from the first gene and the selected covariate, generate a violin plot that illustrates the distribution of count data based on the covariate. For example, if you choose “primary_diagnosis”, your plot should display a violin plot for each level in “primary_diagnosis”. 
+```{r}
+# Pick a covariate from metadata. Here we are selecting sample type
+covariate <- metadata$sample_type
+
+# Create data frame combing gene counts with the metadata covariate
+violin_df <- data.frame(Count = gene1_vec, sample_type = covariate)
+#print(violin_df)
+
+# Violin plot showing distribution of gene expression across sample types
+violin_plot <- ggplot(violin_df, aes(x = sample_type, y = Count, fill = sample_type)) +
+  geom_violin(color = "black") +
+  labs(
+    fill = "Sample Type",
+    x = paste("Sample Type"),
+    y = paste("Gene", gene1_name, "Count"),
+    title = paste("Distribution of Gene", gene1_name, "by Sample Type")
+  ) + theme_minimal()
+
+print(violin_plot)
+# Save the plot
+ggsave(paste0(file_path, "final_project_violin.png"), violin_plot, width = 7, height = 5,dpi = 300)
+```
+4. Heatmap Analysis: 
+a. Select 10 genes: Choose a set of 10 different genes from the count matrix for your heatmap.
+b. Generate a Heatmap: Use the ComplexHeatmap package in R to create a heatmap of the count data for the selected genes.
+c. Add an Annotation Bar: Include an annotation bar reflecting your chosen covariate for further context and interpretation of the data.
+```{r}
+# Reading in library necessary for creating heatmaps
+library(ComplexHeatmap)
+library(circlize)
+
+# Selecting first 10 genes from the count matrix
+genes_to_plot <- rownames(counts)[1:10]
+
+# Visualizing which 10 genes were selected
+print(genes_to_plot)
+
+# Subset the count matrix to keep only the 10 random genes
+counts_subset <- counts[genes_to_plot, ]
+
+# Heatmap annotation
+col_ann <- HeatmapAnnotation(
+  Sample_Type = covariate,
+  col = list(Sample_Type = c("Metastatic" = "red", "Primary Tumor" = "orange", "Solid Tissue Normal" = "green")),
+  annotation_legend_param = list(title = "Sample Type")
+)
+
+# Save the plot
+png(paste0(file_path, "final_project_heatmap.png"), width = 2500, height = 1500, res = 300)
+# Create Heatmap
+Heatmap(
+  counts_subset,
+  name = "Counts",
+  top_annotation = col_ann,
+  show_row_names = TRUE,
+  show_column_names = FALSE,
+  cluster_rows = TRUE,
+  cluster_columns = TRUE,
+  column_title = "Samples",
+  row_title = "Genes"
+)
+
+dev.off()
+
+```
+```{r}
+# New plot type: Bar chart of average gene1 expression by sample type
+
+# Create data frame combing gene counts with the metadata covariate
+bar_df <- data.frame(Count = gene1_vec, sample_type = covariate)
+
+# Bar plot showing average gene1 expression across sample types
+bar_plot <- ggplot(bar_df, aes(x = sample_type, y = Count, fill = sample_type)) +
+  geom_bar(stat = "summary", fun = "mean",color = "black") +
+  labs(
+    fill = "Sample Type",
+    x = paste("Sample Type"),
+    y = paste("Mean Gene", gene1_name, "Count"),
+    title = paste("Average Expression of Gene", gene1_name, "by Sample Type")
+  ) + theme_minimal()
+
+print(bar_plot)
+# Save the plot
+ggsave(paste0(file_path, "final_project_bar_plot.png"), bar_plot, width = 7, height = 5,dpi = 300)
+```
+
+```{r}
+## Generate full summary statistics for the second gene
+summary(gene2_vec)
+
+## Mean
+Mean2 <- mean(gene2_vec)
+print(paste("Mean:", Mean2))
+
+## Median
+Median2 <- median(gene2_vec)
+print(paste("Median:", Median2))
+
+## Standard Deviation
+Standard_Deviation2 <- sd(gene2_vec)
+print(paste("Standard Deviation:", Standard_Deviation2))
+
+## Minimum
+Minimum2 <- min(gene2_vec)
+print(paste("Minimum:", Minimum2))
+
+## Maximum
+Maximum2 <- max(gene2_vec)
+print(paste("Maximum:", Maximum2))
+```
+
+```{r}
+# Dataframe combining the summary stats of gene1 and gene2
+summary_df <- data.frame(
+  Statistics = c("Mean", "Median", "Standard Deviation", "Minimum","Maximun"),
+  ENSG00000000419.13 = c(Mean1, Median1, Standard_Deviation1, Minimum1, Maximum1),
+  ENSG00000000460.17 = c(Mean2, Median2, Standard_Deviation2, Minimum2, Maximum2)
+)
+
+print(summary_df)
+library(xtable)
+print(xtable(summary_df, caption = "Summary Statistics of Gene ENSG00000000419.13 and ENSG00000000460.17"))
+```
+
